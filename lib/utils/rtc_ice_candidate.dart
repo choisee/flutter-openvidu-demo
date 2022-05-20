@@ -1,4 +1,5 @@
-import 'package:flutter_webrtc/webrtc.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+
 class CustomRTCIceCandidate extends RTCIceCandidate {
   String candidate;
   String sdpMid;

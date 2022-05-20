@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_webrtc/webrtc.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:flutter_openvidu_demo/utils/ApiClient.dart';
 import 'package:flutter_openvidu_demo/utils/RequestConfig.dart';
 import 'package:flutter_openvidu_demo/utils/rtc_ice_candidate.dart';
@@ -149,11 +149,14 @@ class Signaling {
       _localStream.getVideoTracks()[0].switchCamera();
     }
   }
-  void muteMic() {
+  bool muteMic() {
     if (_localStream != null) {
-      //_FIX_IT
-      _localStream.getVideoTracks()[0].setMicrophoneMute(true);
+      bool enabled = _localStream.getAudioTracks()[0].enabled;
+      _localStream.getAudioTracks()[0].enabled = !enabled;
+      return !enabled;
     }
+    print('muteMic error : return false');
+    return false;
   }
 
   Future<dynamic> createWebRtcSession({String sessionId}) {
@@ -225,8 +228,10 @@ class Signaling {
           'secret': '',
           'platform': Platform.isAndroid ? 'Android' : 'iOS',
           // 'dataChannels': 'false',
+          'recorder': false,
           'session': session,
           'token': token,
+          'sdkVersion': '2.18.0',
         });
         _createLocalOffer();
       });
@@ -310,6 +315,8 @@ class Signaling {
           print('◤◢◤◢◤◢◤◢◤◢◤ participantPublished: $params ◤◢◤◢◤◢◤◢◤◢◤');
           break;
         case JsonConstants.participantLeft:
+          _participantLeftMethod(params);
+
           print('◤◢◤◢◤◢◤◢◤◢◤ participantLeft: $params ◤◢◤◢◤◢◤◢◤◢◤');
           break;
         case JsonConstants.participantEvicted:
@@ -393,10 +400,12 @@ class Signaling {
 
   void _participantLeftMethod(Map<String, dynamic> params) {
     String participantId = params['connectionId'];
+    print('_participantLeftMethod : $participantId / $_userId');
     if (participantId == _userId) {
       this.onSelfEvict(_userId);
     }
     else if (_participants.containsKey(participantId)) {
+      print('_participantLeftMethod : _participants.containsKey true');
       this.onParticipantsRemove(_participants[participantId]);
       _participants[participantId].peerConnection?.close();
       _participants.remove(participantId);
@@ -455,7 +464,7 @@ class Signaling {
         'optional': [],
       }
     };
-    MediaStream stream = await navigator.getUserMedia(mediaConstraints);
+    MediaStream stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
     if (isLocalStream && this.onLocalStream != null) {
       this.onLocalStream(stream);
     }
@@ -482,7 +491,7 @@ class Signaling {
     _localPeerConnection.onIceCandidate = (candidate) {
       Map<String, dynamic> iceCandidateParams = {
         'sdpMid': candidate.sdpMid,
-        'sdpMLineIndex': candidate.sdpMlineIndex,
+        'sdpMLineIndex': candidate.sdpMLineIndex,
         'candidate': candidate.candidate,
       };
       if (_userId != null){
@@ -500,7 +509,7 @@ class Signaling {
     remotePeerConnection.onIceCandidate = (candidate) {
       Map<String, dynamic> iceCandidateParams = {
         'sdpMid': candidate.sdpMid,
-        'sdpMLineIndex': candidate.sdpMlineIndex,
+        'sdpMLineIndex': candidate.sdpMLineIndex,
         'endpointName': remoteParticipant.streamId ?? _participantEndpoints[remoteParticipant.id] ?? remoteParticipant.id,
         'candidate': candidate.candidate,
       };

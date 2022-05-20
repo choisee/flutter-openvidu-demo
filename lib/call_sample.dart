@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
-import 'package:flutter_webrtc/webrtc.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:flutter_openvidu_demo/utils/signaling.dart';
 
 class CallSampleWidget extends StatefulWidget {
@@ -22,6 +21,7 @@ class _CallSampleWidgetState extends State<CallSampleWidget> {
   final _remoteRenderer = new RTCVideoRenderer();
 
   Signaling _signaling;
+  bool _isMute = false;
 
   @override
   void initState() {
@@ -47,7 +47,11 @@ class _CallSampleWidgetState extends State<CallSampleWidget> {
   }
 
   void _muteMic() {
-    _signaling.muteMic();
+    bool isAudioEnabled = _signaling.muteMic();
+    print('_muteMic result : $isAudioEnabled');
+    setState(() {
+      _isMute = !isAudioEnabled;
+    });
   }
   
   @override
@@ -100,8 +104,14 @@ class _CallSampleWidgetState extends State<CallSampleWidget> {
               child: new Icon(Icons.call_end),
               backgroundColor: Colors.pink,
             ),
+            _isMute ?
             FloatingActionButton(
               child: const Icon(Icons.mic_off),
+              onPressed: _muteMic,
+              heroTag: "btn_muteMic",
+            ) :
+            FloatingActionButton(
+              child: const Icon(Icons.mic_none),
               onPressed: _muteMic,
               heroTag: "btn_muteMic",
             )
@@ -145,6 +155,11 @@ class _CallSampleWidgetState extends State<CallSampleWidget> {
             break;
           case SignalingState.CallStateBye:
             break;
+          case SignalingState.CallStateWaiting:
+            _remoteRenderer.srcObject = null;
+            setState(() {});
+            print('empty remote src');
+            break;
           default:
             break;
         }
@@ -153,11 +168,13 @@ class _CallSampleWidgetState extends State<CallSampleWidget> {
       _signaling.onLocalStream = ((stream) {
         print('onLocalStream: ${stream.id}');
         _localRenderer.srcObject = stream;
+        setState(() {});
       });
 
       _signaling.onAddRemoteStream = ((stream) {
         print('onAddRemoteStream: ${stream.id}');
         _remoteRenderer.srcObject = stream;
+        setState(() {});
       });
 
       _signaling.onRemoveRemoteStream = ((stream) {
@@ -165,5 +182,25 @@ class _CallSampleWidgetState extends State<CallSampleWidget> {
         _remoteRenderer.srcObject = null;
       });
     }
+    _signaling.onParticipantsRemove = ((remoteParticipant) {
+      print('onParticipantsRemove :$remoteParticipant ');
+    });
+    _signaling.onParticipantsJoined = ((remoteParticipant) {
+      print('onParticipantsJoined :$remoteParticipant ');
+    });
+    _signaling.onParticipantsStreamUpdate = ((remoteParticipant) {
+      print('onParticipantsStreamUpdate :$remoteParticipant ');
+    });
+    _signaling.onMessageReceive = ((params) {
+      print('onMessageReceive :$params ');
+    });
+    _signaling.onUserId = ((userId) {
+      print('onUserId :$userId ');
+    });
+    _signaling.onSelfEvict = ((userId) {
+      _remoteRenderer.srcObject = null;
+      setState(() {});
+      print('onSelfEvict :$userId ');
+    });
   }
 }
